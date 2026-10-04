@@ -25,11 +25,36 @@ jobs:
         with:
           gradle-version: '8.4'
 
+      - name: Find Gradle project
+        run: |
+          PROJECT_DIR=$(find . -name "settings.gradle" -o -name "settings.gradle.kts" | head -n 1)
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: settings.gradle not found!"
+            find . -maxdepth 4 -type f | sort
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$PROJECT_DIR")
+
+          echo "Found Gradle project:"
+          echo "$PROJECT_DIR"
+
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
       - name: Build Zorbix
-        run: gradle build --no-daemon
+        run: |
+          cd "$PROJECT_DIR"
+          gradle build --no-daemon
+
+      - name: Show build files
+        run: |
+          echo "Built JAR files:"
+          find "$PROJECT_DIR" -path "*/build/libs/*.jar" -type f -print
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
           name: Zorbix-Renderer-V4
-          path: build/libs/*.jar
+          path: "**/build/libs/*.jar"
+          if-no-files-found: error
