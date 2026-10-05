@@ -25,19 +25,37 @@ jobs:
         with:
           gradle-version: '8.4'
 
-      - name: Find Gradle project
+      - name: Extract Zorbix project
         run: |
-          PROJECT_DIR=$(find . -name "settings.gradle" -o -name "settings.gradle.kts" | head -n 1)
+          ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
 
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "ERROR: settings.gradle not found!"
-            find . -maxdepth 4 -type f | sort
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: Zorbix ZIP not found!"
             exit 1
           fi
 
-          PROJECT_DIR=$(dirname "$PROJECT_DIR")
+          echo "Found: $ZIP_FILE"
 
-          echo "Found Gradle project:"
+          mkdir -p extracted
+          unzip -q "$ZIP_FILE" -d extracted
+
+          echo "Extracted files:"
+          find extracted -maxdepth 4 -type f | sort
+
+      - name: Find Gradle project
+        run: |
+          PROJECT_DIR=$(find extracted -type f \( \
+            -name "settings.gradle" -o \
+            -name "settings.gradle.kts" \
+          \) -print -quit | xargs -r dirname)
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: settings.gradle not found after extracting ZIP!"
+            find extracted -type f | sort
+            exit 1
+          fi
+
+          echo "Gradle project:"
           echo "$PROJECT_DIR"
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
@@ -49,8 +67,8 @@ jobs:
 
       - name: Show build files
         run: |
-          echo "Built JAR files:"
-          find "$PROJECT_DIR" -path "*/build/libs/*.jar" -type f -print
+          echo "JAR files:"
+          find "$PROJECT_DIR" -type f -path "*/build/libs/*.jar" -print
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
